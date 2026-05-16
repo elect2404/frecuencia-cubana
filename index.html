@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Frecuencia Cubana - Portal de Radio y TV</title>
+    <meta name="description" content="Escucha las mejores emisoras de radio y mira canales de televisión de Cuba.">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- HLS.js for TV Streaming -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ff3b30">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhoH3IFmMyuIjp0ha4nJ1CUcYq4lQETjZx8oNyORfpSY5vEZEw4Ct_6Z3zfe-GYCOtGwwZVaPSMTiEEx7OzsiU_A-M9qIQ_ofZKg1apLesgatq8cgU4vXe3hqZoT8232nCxhb_tnQ6XWIFrqd3DkzYW_fX_fAeVIvfPnPgS5fOmUsyPkYHdIrl1m-1kfg/s192/logo.png">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(reg => console.log('Service Worker registrado', reg))
+                    .catch(err => console.log('Error registrando SW', err));
+            });
+        }
+    </script>
+</head>
+<body>
+
+    <nav class="sidebar" id="sidebar">
+        <ul class="nav-links">
+            <li><a href="#" data-view="radio" class="active"><i class="fa-solid fa-radio"></i> Radio</a></li>
+            <li><a href="#" data-view="tv"><i class="fa-solid fa-tv"></i> Televisión</a></li>
+            <li><a href="#" data-view="favorites"><i class="fa-solid fa-heart"></i> Favoritos</a></li>
+            <li><a href="#" data-view="news"><i class="fa-solid fa-newspaper"></i> Noticias</a></li>
+            <li style="margin-top: 30px; margin-bottom: 10px; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); padding-left: 16px;">Legal y Contacto</li>
+            <li><a href="#" data-view="about"><i class="fa-solid fa-circle-info"></i> Acerca de</a></li>
+            <li><a href="#" data-view="privacy"><i class="fa-solid fa-shield-halved"></i> Privacidad</a></li>
+            <li><a href="#" data-view="contact"><i class="fa-solid fa-envelope"></i> Contacto</a></li>
+        </ul>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <header class="top-header">
+            <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
+            <div class="header-center">
+                <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhoH3IFmMyuIjp0ha4nJ1CUcYq4lQETjZx8oNyORfpSY5vEZEw4Ct_6Z3zfe-GYCOtGwwZVaPSMTiEEx7OzsiU_A-M9qIQ_ofZKg1apLesgatq8cgU4vXe3hqZoT8232nCxhb_tnQ6XWIFrqd3DkzYW_fX_fAeVIvfPnPgS5fOmUsyPkYHdIrl1m-1kfg/s320/logo.png" alt="Frecuencia Cubana Logo" class="header-logo" />
+                <h1 id="page-title">Frecuencia Cubana</h1>
+            </div>
+            <!-- Espacio AdSense Header -->
+            <div class="adsense-placeholder header-ad">
+                <span>AdSense Header (728x90)</span>
+            </div>
+        </header>
+
+        <div class="view-container" id="view-container">
+            <!-- Vistas dinámicas se cargarán aquí -->
+            
+            <div id="view-radio" class="view active-view">
+                <div class="grid" id="radio-grid"></div>
+            </div>
+            
+            <div id="view-tv" class="view">
+                <div class="grid" id="tv-grid"></div>
+            </div>
+            
+            <div id="view-favorites" class="view">
+                <div class="grid" id="favorites-grid"></div>
+                <div id="no-favorites" class="empty-state" style="display: none;">
+                    <i class="fa-regular fa-heart"></i>
+                    <p>Aún no tienes favoritos guardados.</p>
+                </div>
+            </div>
+
+            <div id="view-news" class="view">
+                <div class="news-container">
+                    <h2>Últimas Noticias</h2>
+                    <p>Aquí puedes integrar tus artículos o noticias vía RSS.</p>
+                    <div class="news-grid" id="news-grid">
+                        <!-- Artículos de ejemplo -->
+                        <article class="news-card">
+                            <img src="https://images.unsplash.com/photo-1510251101967-172b834bb4e3?auto=format&fit=crop&q=80&w=400&h=200" alt="Noticia 1" />
+                            <div class="news-content">
+                                <h3>La radio cubana se reinventa en formato digital</h3>
+                                <p>Descubre cómo las emisoras tradicionales están adaptándose al mundo del streaming online.</p>
+                            </div>
+                        </article>
+                        <article class="news-card">
+                            <img src="https://images.unsplash.com/photo-1598285521949-c16e78dbf807?auto=format&fit=crop&q=80&w=400&h=200" alt="Noticia 2" />
+                            <div class="news-content">
+                                <h3>Programación destacada del fin de semana</h3>
+                                <p>Un repaso por los mejores programas musicales e informativos que no te puedes perder.</p>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Páginas Legales -->
+            <div id="view-about" class="view text-page">
+                <h2>Acerca de Frecuencia Cubana</h2>
+                <p>Frecuencia Cubana es un portal diseñado para reunir las mejores emisoras de radio y canales de televisión de Cuba en un solo lugar. Nuestro objetivo es conectar a los cubanos en cualquier parte del mundo con su cultura y actualidad.</p>
+            </div>
+            <div id="view-privacy" class="view text-page">
+                <h2>Política de Privacidad y Cookies</h2>
+                <p>En <strong>Frecuencia Cubana</strong>, accesible desde nuestro portal web o aplicación, una de nuestras principales prioridades es la privacidad de nuestros visitantes. Este documento de Política de Privacidad contiene los tipos de información que recopilamos y cómo la utilizamos.</p>
+                
+                <h3>Archivos de Registro (Log Files)</h3>
+                <p>Frecuencia Cubana sigue un procedimiento estándar de uso de archivos de registro. Estos archivos registran a los visitantes cuando navegan por sitios web. La información recopilada por los archivos de registro incluye direcciones de protocolo de internet (IP), tipo de navegador, proveedor de servicios de internet (ISP), fecha y hora, páginas de referencia/salida y posiblemente el número de clics. Estos no están vinculados a ninguna información que sea personalmente identificable.</p>
+
+                <h3>Políticas de Privacidad de Terceros y AdSense</h3>
+                <p>Google, como proveedor externo, utiliza cookies para publicar anuncios en nuestro sitio. El uso por parte de Google de la cookie DART le permite mostrar anuncios a nuestros usuarios basándose en su visita a nuestro sitio y a otros sitios en Internet. Los usuarios pueden optar por no usar la cookie DART visitando la política de privacidad de la red de anuncios de Google en la siguiente URL: <a href="https://policies.google.com/technologies/ads" target="_blank" style="color: var(--secondary-color);">https://policies.google.com/technologies/ads</a>.</p>
+                <p>Usted puede elegir desactivar las cookies a través de las opciones individuales de su navegador. Para conocer información más detallada sobre la gestión de cookies con navegadores web específicos, se puede encontrar en los sitios web respectivos de los navegadores.</p>
+
+                <h3>Almacenamiento Local (LocalStorage)</h3>
+                <p>Nuestro sitio utiliza almacenamiento local (LocalStorage) exclusivamente para guardar sus emisoras "Favoritas" directamente en su dispositivo. No transmitimos, almacenamos en nuestros servidores, ni compartimos esta información con terceros.</p>
+            </div>
+            
+            <div id="view-contact" class="view text-page">
+                <h2>Contacto y Soporte</h2>
+                <p>Valoramos tu opinión y estamos aquí para ayudarte. Si tienes preguntas, sugerencias, quieres reportar una emisora de radio/televisión caída, o estás interesado en anunciar en nuestro portal, no dudes en ponerte en contacto con nosotros.</p>
+                
+                <div class="contact-box" style="background: var(--bg-card); padding: 20px; border-radius: 12px; margin-top: 20px; border: 1px solid var(--border-color);">
+                    <h3>Detalles de Contacto</h3>
+                    <ul style="list-style: none; margin-top: 15px;">
+                        <li style="margin-bottom: 10px;"><i class="fa-solid fa-envelope" style="color: var(--primary-color); margin-right: 10px;"></i> <strong>Email:</strong> contacto@frecuenciacubana.com</li>
+                        <li style="margin-bottom: 10px;"><i class="fa-solid fa-headset" style="color: var(--primary-color); margin-right: 10px;"></i> <strong>Soporte Técnico:</strong> soporte@frecuenciacubana.com</li>
+                    </ul>
+                    <p style="margin-top: 20px; font-size: 0.9rem; color: var(--text-muted);">Nos esforzamos por responder a todas las consultas en un plazo de 24 a 48 horas hábiles. Para solicitudes relacionadas con la adición de nuevas emisoras, por favor proporciona el nombre de la estación y el enlace de streaming válido (.mp3, .aac, .m3u8).</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Footer para Enlaces Legales -->
+        <footer class="main-footer" style="text-align: center; padding: 30px 20px 80px 20px; margin-top: 40px; border-top: 1px solid var(--border-color); color: var(--text-muted);">
+            <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 15px;">
+                <a href="#" data-view="about" style="color: var(--text-muted); text-decoration: none; font-weight: 600;"><i class="fa-solid fa-circle-info"></i> Acerca de</a>
+                <a href="#" data-view="privacy" style="color: var(--text-muted); text-decoration: none; font-weight: 600;"><i class="fa-solid fa-shield-halved"></i> Privacidad y Cookies</a>
+                <a href="#" data-view="contact" style="color: var(--text-muted); text-decoration: none; font-weight: 600;"><i class="fa-solid fa-envelope"></i> Contacto</a>
+            </div>
+            <p style="font-size: 0.85rem;">&#169; 2026 Frecuencia Cubana. Todos los derechos reservados.</p>
+        </footer>
+
+        <!-- Espacio AdSense Footer -->
+        <div class="adsense-placeholder footer-ad">
+            <span>AdSense Footer Responsive</span>
+        </div>
+    </main>
+
+    <!-- Video Modal para TV -->
+    <div id="tv-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-modal" id="close-tv-modal"><i class="fa-solid fa-xmark"></i></button>
+            <div class="video-container">
+                <video id="tv-player" controls="controls" preload="auto"></video>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 id="tv-modal-title" style="margin: 0; font-size: 1.3rem;">Canal TV</h3>
+                <button id="btn-show-cartelera" style="display: none; background: var(--secondary-color); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: 'Outfit', sans-serif; font-weight: 600;"><i class="fa-solid fa-calendar-days"></i> Ver Cartelera</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Audio Player (Fixed Bottom) -->
+    <div class="global-player" id="global-player">
+        <div class="player-info">
+            <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhoH3IFmMyuIjp0ha4nJ1CUcYq4lQETjZx8oNyORfpSY5vEZEw4Ct_6Z3zfe-GYCOtGwwZVaPSMTiEEx7OzsiU_A-M9qIQ_ofZKg1apLesgatq8cgU4vXe3hqZoT8232nCxhb_tnQ6XWIFrqd3DkzYW_fX_fAeVIvfPnPgS5fOmUsyPkYHdIrl1m-1kfg/s320/logo.png" alt="Cover" id="player-cover" />
+            <div class="player-text">
+                <h4 id="player-title">Selecciona una emisora</h4>
+                <p id="player-subtitle">Frecuencia Cubana</p>
+            </div>
+        </div>
+        
+        <div class="player-controls">
+            <button class="control-btn" id="btn-play-pause"><i class="fa-solid fa-play"></i></button>
+        </div>
+
+        <div class="player-volume">
+            <i class="fa-solid fa-volume-high"></i>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="1" />
+        </div>
+        
+        <!-- Elemento de audio nativo -->
+        <audio id="audio-player" preload="none"></audio>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/data.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
