@@ -1,11 +1,13 @@
 [
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
     "target": {
       "namespace": "android_app",
       "package_name": "com.frecuenciacubana.twa",
       "sha256_cert_fingerprints": [
-        "REEMPLAZAR_CON_TU_SHA256_DE_PWABUILDER"
+        "D6:F6:E9:EF:43:43:00:27:4B:03:72:A8:87:EC:FD:41:6E:12:FC:60:5C:09:18:4D:D7:39:EA:8C:A6:11:FB:5D"
       ]
     }
   }
