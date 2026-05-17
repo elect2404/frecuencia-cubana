@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isPlaying = false;
 
     // --- Network & Recovery State ---
-    let wasPlayingBeforeOffline = false;
+    let shouldBePlaying = false; // Capture explicit user play/pause intent
     let isOffline = !navigator.onLine;
     let reconnectTimeout = null;
     let reconnectAttempts = 0;
@@ -302,8 +302,20 @@ document.addEventListener('DOMContentLoaded', () => {
         audioPlayer.src = '';
         audioPlayer.load();
         
+        // If we went offline, do not keep retrying in the background. 
+        // We will resume once we get the 'online' event.
+        if (isOffline || !navigator.onLine) {
+            playerSubtitle.textContent = 'Esperando conexión de red...';
+            return;
+        }
+        
         // Small timeout before resetting src and playing to let sockets close cleanly
         reconnectTimeout = setTimeout(() => {
+            if (isOffline || !navigator.onLine) {
+                playerSubtitle.textContent = 'Esperando conexión de red...';
+                return;
+            }
+
             audioPlayer.src = currentAudioUrl;
             audioPlayer.load();
             
@@ -337,7 +349,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Network Listeners ---
     window.addEventListener('offline', () => {
         isOffline = true;
-        wasPlayingBeforeOffline = isPlaying;
+        
+        // Cancel any pending background reconnect timeouts
+        if (reconnectTimeout) {
+            clearTimeout(reconnectTimeout);
+            reconnectTimeout = null;
+        }
         
         showToast(
             'Sin conexión a Internet', 
@@ -370,7 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
             4000
         );
         
-        if (wasPlayingBeforeOffline && currentAudioUrl) {
+        if (shouldBePlaying && currentAudioUrl) {
             reconnectAttempts = 0;
             reconnectStream();
         }
@@ -380,6 +397,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function playRadio(radio) {
         // Stop TV if playing
         stopTv();
+        
+        shouldBePlaying = true; // Set explicit play intent
         
         if (reconnectTimeout) clearTimeout(reconnectTimeout);
         reconnectAttempts = 0;
@@ -420,11 +439,13 @@ document.addEventListener('DOMContentLoaded', () => {
         reconnectAttempts = 0;
 
         if (isPlaying) {
+            shouldBePlaying = false; // Set explicit pause intent
             audioPlayer.pause();
             isPlaying = false;
             playerSubtitle.textContent = 'Pausado';
             stopWatchdog();
         } else {
+            shouldBePlaying = true; // Set explicit play intent
             playerSubtitle.textContent = 'Conectando...';
             // Force reload to get fresh live stream frames instead of lagging buffer
             audioPlayer.src = currentAudioUrl;
@@ -463,20 +484,25 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Audio player error occurred:', e);
         stopWatchdog();
         
-        if (!isOffline && currentAudioUrl && isPlaying) {
+        // If we are actually offline, let the network listeners handle reconnection
+        if (isOffline || !navigator.onLine) {
+            isOffline = true;
+            playerSubtitle.textContent = 'Esperando conexión de red...';
+            return;
+        }
+        
+        if (shouldBePlaying && currentAudioUrl) {
             playerSubtitle.textContent = 'Error de señal. Reconectando...';
             reconnectStream();
         } else {
             isPlaying = false;
             updatePlayIcon();
             playerSubtitle.textContent = 'Error de conexión';
-            if (!isOffline) {
-                showToast(
-                    'Error de transmisión', 
-                    'Ocurrió un error al cargar la señal de la emisora. Puede estar temporalmente fuera de servicio.', 
-                    'danger'
-                );
-            }
+            showToast(
+                'Error de transmisión', 
+                'Ocurrió un error al cargar la señal de la emisora. Puede estar temporalmente fuera de servicio.', 
+                'danger'
+            );
         }
     });
 
@@ -488,6 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
             isPlaying = false;
             updatePlayIcon();
         }
+        shouldBePlaying = false; // Focus is now TV, turn off radio auto-reconnect intent
 
         tvModalTitle.textContent = tv.name;
         
