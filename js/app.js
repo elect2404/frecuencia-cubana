@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let reconnectTimeout = null;
     let reconnectAttempts = 0;
     const MAX_RECONNECT_ATTEMPTS = 5;
+    let endlessRecoveryTimer = null;
 
     let lastCurrentTime = -1;
     let stagnantTimeCount = 0;
@@ -288,6 +289,63 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Endless Recovery Loop (WebView Friendly) ---
+    function startEndlessRecovery() {
+        stopEndlessRecovery();
+        
+        console.log('Starting endless recovery loop...');
+        playerSubtitle.textContent = 'Sin señal - Buscando...';
+        
+        endlessRecoveryTimer = setInterval(() => {
+            if (!shouldBePlaying) {
+                stopEndlessRecovery();
+                return;
+            }
+            
+            if (!isPlaying) {
+                console.log('Endless Recovery Check: Trying to connect...');
+                playerSubtitle.textContent = 'Buscando señal...';
+                
+                audioPlayer.pause();
+                audioPlayer.src = '';
+                audioPlayer.load();
+                
+                setTimeout(() => {
+                    if (!shouldBePlaying) return;
+                    
+                    audioPlayer.src = currentAudioUrl;
+                    audioPlayer.load();
+                    
+                    audioPlayer.play().then(() => {
+                        console.log('Endless Recovery Check: Succeeded!');
+                        isPlaying = true;
+                        updatePlayIcon();
+                        playerSubtitle.textContent = 'En vivo';
+                        showToast(
+                            'Señal restablecida', 
+                            'La transmisión se ha reanudado automáticamente.', 
+                            'success'
+                        );
+                        startWatchdog();
+                        stopEndlessRecovery();
+                    }).catch(err => {
+                        console.log('Endless Recovery Check: Failed attempt. Will retry...');
+                        playerSubtitle.textContent = 'Esperando señal...';
+                    });
+                }, 1000);
+            } else {
+                stopEndlessRecovery();
+            }
+        }, 8000); // Check every 8 seconds
+    }
+
+    function stopEndlessRecovery() {
+        if (endlessRecoveryTimer) {
+            clearInterval(endlessRecoveryTimer);
+            endlessRecoveryTimer = null;
+        }
+    }
+
     // --- Reconnect Logic ---
     function reconnectStream() {
         if (!currentAudioUrl) return;
@@ -302,17 +360,16 @@ document.addEventListener('DOMContentLoaded', () => {
         audioPlayer.src = '';
         audioPlayer.load();
         
-        // If we went offline, do not keep retrying in the background. 
-        // We will resume once we get the 'online' event.
+        // If we are offline, go straight to the endless recovery loop
         if (isOffline || !navigator.onLine) {
-            playerSubtitle.textContent = 'Esperando conexión de red...';
+            startEndlessRecovery();
             return;
         }
         
         // Small timeout before resetting src and playing to let sockets close cleanly
         reconnectTimeout = setTimeout(() => {
             if (isOffline || !navigator.onLine) {
-                playerSubtitle.textContent = 'Esperando conexión de red...';
+                startEndlessRecovery();
                 return;
             }
 
@@ -325,6 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 playerSubtitle.textContent = 'En vivo';
                 startWatchdog();
                 reconnectAttempts = 0;
+                stopEndlessRecovery();
             }).catch(err => {
                 console.error('Reconnect failed:', err);
                 reconnectAttempts++;
@@ -334,13 +392,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     isPlaying = false;
                     updatePlayIcon();
-                    playerSubtitle.textContent = 'Señal caída - Toca Play';
-                    showToast(
-                        'Señal interrumpida', 
-                        'No se pudo restablecer la conexión. La emisora puede estar caída temporalmente.', 
-                        'warning'
-                    );
+                    playerSubtitle.textContent = 'Señal caída - Buscando...';
                     stopWatchdog();
+                    startEndlessRecovery(); // Transition to slow recovery loop
                 }
             });
         }, 1000);
@@ -368,6 +422,10 @@ document.addEventListener('DOMContentLoaded', () => {
             playerSubtitle.textContent = 'Esperando conexión de red...';
             stopWatchdog();
         }
+        
+        if (shouldBePlaying) {
+            startEndlessRecovery();
+        }
     });
 
     window.addEventListener('online', () => {
@@ -388,6 +446,7 @@ document.addEventListener('DOMContentLoaded', () => {
         );
         
         if (shouldBePlaying && currentAudioUrl) {
+            stopEndlessRecovery();
             reconnectAttempts = 0;
             reconnectStream();
         }
@@ -399,6 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
         stopTv();
         
         shouldBePlaying = true; // Set explicit play intent
+        stopEndlessRecovery();
         
         if (reconnectTimeout) clearTimeout(reconnectTimeout);
         reconnectAttempts = 0;
@@ -425,10 +485,11 @@ document.addEventListener('DOMContentLoaded', () => {
             playerSubtitle.textContent = 'Señal no disponible';
             showToast(
                 'Emisora no disponible',
-                'No se pudo conectar a la transmisión. La emisora puede estar inactiva temporalmente.',
+                'No se pudo conectar a la transmisión. La emisora puede estar inactiva temporariamente.',
                 'warning'
             );
             stopWatchdog();
+            startEndlessRecovery(); // Start seeking signal in the background
         });
     }
 
@@ -440,12 +501,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isPlaying) {
             shouldBePlaying = false; // Set explicit pause intent
+            stopEndlessRecovery();
             audioPlayer.pause();
             isPlaying = false;
             playerSubtitle.textContent = 'Pausado';
             stopWatchdog();
         } else {
             shouldBePlaying = true; // Set explicit play intent
+            stopEndlessRecovery();
             playerSubtitle.textContent = 'Conectando...';
             // Force reload to get fresh live stream frames instead of lagging buffer
             audioPlayer.src = currentAudioUrl;
@@ -461,10 +524,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 playerSubtitle.textContent = 'Señal no disponible';
                 showToast(
                     'Emisora no disponible',
-                    'No se pudo conectar a la transmisión. La emisora puede estar inactiva temporalmente.',
+                    'No se pudo conectar a la transmisión. La emisora puede estar inactiva temporariamente.',
                     'warning'
                 );
                 stopWatchdog();
+                startEndlessRecovery(); // Start seeking signal in the background
             });
         }
         updatePlayIcon();
@@ -484,16 +548,11 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Audio player error occurred:', e);
         stopWatchdog();
         
-        // If we are actually offline, let the network listeners handle reconnection
-        if (isOffline || !navigator.onLine) {
-            isOffline = true;
-            playerSubtitle.textContent = 'Esperando conexión de red...';
-            return;
-        }
-        
         if (shouldBePlaying && currentAudioUrl) {
-            playerSubtitle.textContent = 'Error de señal. Reconectando...';
-            reconnectStream();
+            isPlaying = false;
+            updatePlayIcon();
+            playerSubtitle.textContent = 'Buscando señal...';
+            startEndlessRecovery(); // Instantly enter background recovery loop
         } else {
             isPlaying = false;
             updatePlayIcon();
@@ -515,6 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updatePlayIcon();
         }
         shouldBePlaying = false; // Focus is now TV, turn off radio auto-reconnect intent
+        stopEndlessRecovery();
 
         tvModalTitle.textContent = tv.name;
         
