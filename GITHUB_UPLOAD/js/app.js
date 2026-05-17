@@ -61,6 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (viewId === 'favorites') {
             renderFavorites();
         }
+
+        // Scroll the main content area to the top on section change
+        const mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+            mainContent.scrollTop = 0;
+        }
     }
 
     navLinks.forEach(link => {
@@ -313,12 +319,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 tvModal.classList.add('show');
             }
         });
-        tvPlayer.addEventListener('webkitendfullscreen', () => {
-            if (tvModal.classList.contains('show')) {
-                tvModal.classList.remove('show');
-                stopTv();
-            }
-        });
     }
 
     function exitFullscreen() {
@@ -342,24 +342,6 @@ document.addEventListener('DOMContentLoaded', () => {
         tvPlayer.src = '';
         exitFullscreen();
     }
-
-    // Handle exiting fullscreen natively closing the TV modal
-    function onFullscreenChange() {
-        const isFullscreen = document.fullscreenElement || 
-                             document.webkitFullscreenElement || 
-                             document.mozFullScreenElement || 
-                             document.msFullscreenElement;
-        
-        if (!isFullscreen && tvModal.classList.contains('show')) {
-            tvModal.classList.remove('show');
-            stopTv();
-        }
-    }
-
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
-    document.addEventListener('mozfullscreenchange', onFullscreenChange);
-    document.addEventListener('MSFullscreenChange', onFullscreenChange);
 
     // Automatically enter fullscreen on rotating to landscape while TV modal is active
     function handleOrientationChange() {
