@@ -44,6 +44,18 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentAudioUrl = '';
     let isPlaying = false;
 
+    // --- Network & Recovery State ---
+    let wasPlayingBeforeOffline = false;
+    let isOffline = !navigator.onLine;
+    let reconnectTimeout = null;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 5;
+
+    let lastCurrentTime = -1;
+    let stagnantTimeCount = 0;
+    let watchdogInterval = null;
+
+
     // --- Navigation (SPA) ---
     function switchView(viewId, title) {
         views.forEach(view => view.classList.remove('active-view'));
@@ -185,37 +197,254 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Toast Notification Helper ---
+    function showToast(title, message, type = 'info', duration = 4000) {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        let iconClass = 'fa-solid fa-circle-info';
+        if (type === 'success') iconClass = 'fa-solid fa-circle-check';
+        if (type === 'warning') iconClass = 'fa-solid fa-triangle-exclamation';
+        if (type === 'danger') iconClass = 'fa-solid fa-circle-exclamation';
+
+        toast.innerHTML = `
+            <div class="toast-icon">
+                <i class="${iconClass}"></i>
+            </div>
+            <div class="toast-content">
+                <div class="toast-title">${title}</div>
+                <div class="toast-message">${message}</div>
+            </div>
+            <button class="toast-close"><i class="fa-solid fa-xmark"></i></button>
+        `;
+        
+        container.appendChild(toast);
+        
+        // Force reflow
+        toast.offsetHeight;
+        
+        // Show
+        container.classList.add('show');
+        
+        const closeBtn = toast.querySelector('.toast-close');
+        const dismissToast = () => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(-20px)';
+            setTimeout(() => {
+                toast.remove();
+                if (container.children.length === 0) {
+                    container.classList.remove('show');
+                }
+            }, 400);
+        };
+        
+        closeBtn.addEventListener('click', dismissToast);
+        
+        if (duration > 0) {
+            setTimeout(dismissToast, duration);
+        }
+    }
+
+    // --- Audio Watchdog ---
+    function startWatchdog() {
+        stopWatchdog();
+        lastCurrentTime = audioPlayer.currentTime;
+        stagnantTimeCount = 0;
+        
+        watchdogInterval = setInterval(() => {
+            if (!isPlaying || isOffline) {
+                stagnantTimeCount = 0;
+                return;
+            }
+            
+            if (audioPlayer.currentTime === lastCurrentTime) {
+                stagnantTimeCount++;
+                if (stagnantTimeCount >= 3) { // 3 ticks * 3s = 9s stagnant
+                    console.log('Watchdog: Audio stream stagnant. Reconnecting...');
+                    reconnectStream();
+                } else {
+                    playerSubtitle.textContent = 'Cargando señal...';
+                }
+            } else {
+                stagnantTimeCount = 0;
+                playerSubtitle.textContent = 'En vivo';
+                lastCurrentTime = audioPlayer.currentTime;
+            }
+        }, 3000);
+    }
+
+    function stopWatchdog() {
+        if (watchdogInterval) {
+            clearInterval(watchdogInterval);
+            watchdogInterval = null;
+        }
+    }
+
+    // --- Reconnect Logic ---
+    function reconnectStream() {
+        if (!currentAudioUrl) return;
+        
+        if (reconnectTimeout) clearTimeout(reconnectTimeout);
+        
+        console.log('Attempting to reconnect...');
+        playerSubtitle.textContent = 'Conectando emisora...';
+        
+        // Stop current audio player completely to free sockets
+        audioPlayer.pause();
+        audioPlayer.src = '';
+        audioPlayer.load();
+        
+        // Small timeout before resetting src and playing to let sockets close cleanly
+        reconnectTimeout = setTimeout(() => {
+            audioPlayer.src = currentAudioUrl;
+            audioPlayer.load();
+            
+            audioPlayer.play().then(() => {
+                isPlaying = true;
+                updatePlayIcon();
+                playerSubtitle.textContent = 'En vivo';
+                startWatchdog();
+                reconnectAttempts = 0;
+            }).catch(err => {
+                console.error('Reconnect failed:', err);
+                reconnectAttempts++;
+                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    playerSubtitle.textContent = `Reintentando reconexión (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`;
+                    reconnectTimeout = setTimeout(reconnectStream, 3000);
+                } else {
+                    isPlaying = false;
+                    updatePlayIcon();
+                    playerSubtitle.textContent = 'Señal caída - Toca Play';
+                    showToast(
+                        'Señal interrumpida', 
+                        'No se pudo restablecer la conexión. La emisora puede estar caída temporalmente.', 
+                        'warning'
+                    );
+                    stopWatchdog();
+                }
+            });
+        }, 1000);
+    }
+
+    // --- Network Listeners ---
+    window.addEventListener('offline', () => {
+        isOffline = true;
+        wasPlayingBeforeOffline = isPlaying;
+        
+        showToast(
+            'Sin conexión a Internet', 
+            'Se ha perdido la conexión de red. La reproducción se reanudará automáticamente al recuperar la señal.', 
+            'danger', 
+            0
+        );
+        
+        if (isPlaying) {
+            audioPlayer.pause();
+            playerSubtitle.textContent = 'Esperando conexión de red...';
+            stopWatchdog();
+        }
+    });
+
+    window.addEventListener('online', () => {
+        isOffline = false;
+        
+        // Dismiss offline danger toasts
+        const offlineToasts = document.querySelectorAll('.toast.danger');
+        offlineToasts.forEach(t => {
+            const closeBtn = t.querySelector('.toast-close');
+            if (closeBtn) closeBtn.click();
+        });
+        
+        showToast(
+            'Conexión restaurada', 
+            'La señal de Internet ha vuelto. Restableciendo la transmisión...', 
+            'success', 
+            4000
+        );
+        
+        if (wasPlayingBeforeOffline && currentAudioUrl) {
+            reconnectAttempts = 0;
+            reconnectStream();
+        }
+    });
+
     // --- Audio Player Logic ---
     function playRadio(radio) {
         // Stop TV if playing
         stopTv();
+        
+        if (reconnectTimeout) clearTimeout(reconnectTimeout);
+        reconnectAttempts = 0;
 
         if (currentAudioUrl !== radio.url) {
             currentAudioUrl = radio.url;
             audioPlayer.src = radio.url;
             playerTitle.textContent = radio.name;
-            playerSubtitle.textContent = 'En vivo';
+            playerSubtitle.textContent = 'Conectando...';
             playerCover.src = radio.image;
         }
+        
+        playerSubtitle.textContent = 'Conectando...';
         
         audioPlayer.play().then(() => {
             isPlaying = true;
             updatePlayIcon();
+            playerSubtitle.textContent = 'En vivo';
+            startWatchdog();
         }).catch(err => {
             console.error('Error playing audio:', err);
-            alert('No se pudo reproducir esta emisora. Puede estar fuera de servicio temporalmente.');
+            isPlaying = false;
+            updatePlayIcon();
+            playerSubtitle.textContent = 'Señal no disponible';
+            showToast(
+                'Emisora no disponible',
+                'No se pudo conectar a la transmisión. La emisora puede estar inactiva temporalmente.',
+                'warning'
+            );
+            stopWatchdog();
         });
     }
 
     function togglePlay() {
         if (!currentAudioUrl) return;
 
+        if (reconnectTimeout) clearTimeout(reconnectTimeout);
+        reconnectAttempts = 0;
+
         if (isPlaying) {
             audioPlayer.pause();
             isPlaying = false;
+            playerSubtitle.textContent = 'Pausado';
+            stopWatchdog();
         } else {
-            audioPlayer.play();
-            isPlaying = true;
+            playerSubtitle.textContent = 'Conectando...';
+            // Force reload to get fresh live stream frames instead of lagging buffer
+            audioPlayer.src = currentAudioUrl;
+            audioPlayer.load();
+            
+            audioPlayer.play().then(() => {
+                isPlaying = true;
+                playerSubtitle.textContent = 'En vivo';
+                startWatchdog();
+            }).catch(err => {
+                console.error('Error playing audio:', err);
+                isPlaying = false;
+                playerSubtitle.textContent = 'Señal no disponible';
+                showToast(
+                    'Emisora no disponible',
+                    'No se pudo conectar a la transmisión. La emisora puede estar inactiva temporalmente.',
+                    'warning'
+                );
+                stopWatchdog();
+            });
         }
         updatePlayIcon();
     }
@@ -230,10 +459,25 @@ document.addEventListener('DOMContentLoaded', () => {
         audioPlayer.volume = e.target.value;
     });
 
-    audioPlayer.addEventListener('error', () => {
-        isPlaying = false;
-        updatePlayIcon();
-        playerSubtitle.textContent = 'Error de conexión';
+    audioPlayer.addEventListener('error', (e) => {
+        console.error('Audio player error occurred:', e);
+        stopWatchdog();
+        
+        if (!isOffline && currentAudioUrl && isPlaying) {
+            playerSubtitle.textContent = 'Error de señal. Reconectando...';
+            reconnectStream();
+        } else {
+            isPlaying = false;
+            updatePlayIcon();
+            playerSubtitle.textContent = 'Error de conexión';
+            if (!isOffline) {
+                showToast(
+                    'Error de transmisión', 
+                    'Ocurrió un error al cargar la señal de la emisora. Puede estar temporalmente fuera de servicio.', 
+                    'danger'
+                );
+            }
+        }
     });
 
     // --- Video (TV) Player Logic ---
