@@ -100,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const isFav = favorites.includes(item.id);
         const card = document.createElement('div');
         card.className = 'card';
+        card.setAttribute('tabindex', '0');
         card.innerHTML = `
             <button class="btn-fav ${isFav ? 'active' : ''}" data-id="${item.id}">
                 <i class="fa-${isFav ? 'solid' : 'regular'} fa-heart"></i>
@@ -117,6 +118,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 playRadio(item);
             } else if (item.type === 'tv') {
                 playTv(item);
+            }
+        });
+
+        // TV Remote / Keyboard Enter Activation
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                card.click();
             }
         });
 
@@ -703,6 +712,100 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target === tvModal) {
             tvModal.classList.remove('show');
             stopTv();
+        }
+    });
+
+    // --- Google TV / Android TV Remote Support (D-pad & Back Button) ---
+    document.addEventListener('keydown', (e) => {
+        // 1. Back/Escape Key to close TV modal
+        if (e.key === 'Escape' || e.key === 'Backspace') {
+            const tvModalEl = document.getElementById('tv-modal');
+            if (tvModalEl && tvModalEl.classList.contains('show')) {
+                e.preventDefault();
+                const closeBtn = document.getElementById('close-tv-modal');
+                if (closeBtn) closeBtn.click();
+            }
+            return;
+        }
+
+        // 2. D-pad Directional Navigation
+        const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+        if (!arrowKeys.includes(e.key)) return;
+
+        // Skip spatial navigation if focused on an input field
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+
+        const active = document.activeElement;
+        
+        // Target list of focusable elements currently visible in the active PWA view
+        const focusableSelectors = 'a[data-view], .card, .btn-fav, .control-btn, #volume-slider, .close-modal, #btn-show-cartelera, #menu-toggle';
+        
+        const focusables = Array.from(document.querySelectorAll(focusableSelectors)).filter(el => {
+            // Only select elements that are visible and have dimensions
+            return el.offsetWidth > 0 && el.offsetHeight > 0 && window.getComputedStyle(el).display !== 'none';
+        });
+
+        if (focusables.length === 0) return;
+
+        // Focus first target if nothing is focused yet
+        if (!active || !focusables.includes(active)) {
+            const defaultTarget = document.querySelector('a[data-view].active') || focusables[0];
+            defaultTarget.focus();
+            e.preventDefault();
+            return;
+        }
+
+        const activeRect = active.getBoundingClientRect();
+        const activeCenter = {
+            x: activeRect.left + activeRect.width / 2,
+            y: activeRect.top + activeRect.height / 2
+        };
+
+        let bestCandidate = null;
+        let minDistance = Infinity;
+
+        focusables.forEach(candidate => {
+            if (candidate === active) return;
+
+            const rect = candidate.getBoundingClientRect();
+            const center = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+
+            const dx = center.x - activeCenter.x;
+            const dy = center.y - activeCenter.y;
+
+            let isDirectionMatch = false;
+
+            // Simple directional threshold filtering (1.5 threshold helps prevent diagonal jumping)
+            switch (e.key) {
+                case 'ArrowLeft':
+                    isDirectionMatch = dx < -5 && Math.abs(dy) < Math.abs(dx) * 1.5;
+                    break;
+                case 'ArrowRight':
+                    isDirectionMatch = dx > 5 && Math.abs(dy) < Math.abs(dx) * 1.5;
+                    break;
+                case 'ArrowUp':
+                    isDirectionMatch = dy < -5 && Math.abs(dx) < Math.abs(dy) * 1.5;
+                    break;
+                case 'ArrowDown':
+                    isDirectionMatch = dy > 5 && Math.abs(dx) < Math.abs(dy) * 1.5;
+                    break;
+            }
+
+            if (isDirectionMatch) {
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    bestCandidate = candidate;
+                }
+            }
+        });
+
+        if (bestCandidate) {
+            bestCandidate.focus();
+            e.preventDefault();
         }
     });
 
