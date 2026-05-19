@@ -549,9 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnPlayPause.addEventListener('click', togglePlay);
 
-    volumeSlider.addEventListener('input', (e) => {
-        audioPlayer.volume = e.target.value;
-    });
+
 
     audioPlayer.addEventListener('error', (e) => {
         console.error('Audio player error occurred:', e);
@@ -746,7 +744,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const active = document.activeElement;
         
         // Target list of focusable elements currently visible in the active PWA view
-        const focusableSelectors = 'a[data-view], .card, .btn-fav, .control-btn, #volume-slider, .close-modal, #btn-show-cartelera, #menu-toggle';
+        const focusableSelectors = 'a[data-view], .card, .btn-fav, .control-btn, .close-modal, #btn-show-cartelera, #menu-toggle';
         
         const focusables = Array.from(document.querySelectorAll(focusableSelectors)).filter(el => {
             // Only select elements that are visible and have dimensions
