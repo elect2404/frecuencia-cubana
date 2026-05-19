@@ -744,7 +744,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const active = document.activeElement;
         
         // Target list of focusable elements currently visible in the active PWA view
-        const focusableSelectors = 'a[data-view], .card, .btn-fav, .control-btn, .close-modal, #btn-show-cartelera, #menu-toggle';
+        const focusableSelectors = 'a[data-view], .card, .control-btn, .close-modal, #btn-show-cartelera, #menu-toggle';
         
         const focusables = Array.from(document.querySelectorAll(focusableSelectors)).filter(el => {
             // Only select elements that are visible and have dimensions
