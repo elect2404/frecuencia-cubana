@@ -786,24 +786,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let isDirectionMatch = false;
 
-            // Simple directional threshold filtering (1.5 threshold helps prevent diagonal jumping)
+            // Broad directional filtering (just needs to be in that general half of the screen)
             switch (e.key) {
                 case 'ArrowLeft':
-                    isDirectionMatch = dx < -5 && Math.abs(dy) < Math.abs(dx) * 1.5;
+                    isDirectionMatch = dx < 0;
                     break;
                 case 'ArrowRight':
-                    isDirectionMatch = dx > 5 && Math.abs(dy) < Math.abs(dx) * 1.5;
+                    isDirectionMatch = dx > 0;
                     break;
                 case 'ArrowUp':
-                    isDirectionMatch = dy < -5 && Math.abs(dx) < Math.abs(dy) * 1.5;
+                    isDirectionMatch = dy < 0;
                     break;
                 case 'ArrowDown':
-                    isDirectionMatch = dy > 5 && Math.abs(dx) < Math.abs(dy) * 1.5;
+                    isDirectionMatch = dy > 0;
                     break;
             }
 
             if (isDirectionMatch) {
-                const distance = Math.sqrt(dx * dx + dy * dy);
+                // Weight the distance to prefer elements that are more "straight" in the pressed direction
+                let weight = 1;
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                    weight = 1 + (Math.abs(dy) / Math.abs(dx));
+                } else {
+                    weight = 1 + (Math.abs(dx) / Math.abs(dy));
+                }
+                
+                const distance = Math.sqrt(dx * dx + dy * dy) * weight;
+                
                 if (distance < minDistance) {
                     minDistance = distance;
                     bestCandidate = candidate;
