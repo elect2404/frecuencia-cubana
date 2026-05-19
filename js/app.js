@@ -805,6 +805,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (bestCandidate) {
             bestCandidate.focus();
+            bestCandidate.scrollIntoView({ behavior: 'smooth', block: 'center' });
             e.preventDefault();
         }
     });
