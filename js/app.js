@@ -467,8 +467,6 @@ document.addEventListener('DOMContentLoaded', () => {
         stopTv();
         
         shouldBePlaying = true; // Set explicit play intent
-        isPlaying = true; // Set playing state synchronously
-        updatePlayIcon(); // Update UI immediately
         stopEndlessRecovery();
         
         if (reconnectTimeout) clearTimeout(reconnectTimeout);
@@ -485,13 +483,11 @@ document.addEventListener('DOMContentLoaded', () => {
         playerSubtitle.textContent = 'Conectando...';
         
         audioPlayer.play().then(() => {
+            isPlaying = true;
+            updatePlayIcon();
             playerSubtitle.textContent = 'En vivo';
             startWatchdog();
         }).catch(err => {
-            if (err.name === 'AbortError') {
-                console.log('Play request aborted.');
-                return;
-            }
             console.error('Error playing audio:', err);
             isPlaying = false;
             updatePlayIcon();
@@ -519,11 +515,8 @@ document.addEventListener('DOMContentLoaded', () => {
             isPlaying = false;
             playerSubtitle.textContent = 'Pausado';
             stopWatchdog();
-            updatePlayIcon();
         } else {
             shouldBePlaying = true; // Set explicit play intent
-            isPlaying = true; // Set playing state synchronously
-            updatePlayIcon(); // Update UI immediately
             stopEndlessRecovery();
             playerSubtitle.textContent = 'Conectando...';
             // Force reload to get fresh live stream frames instead of lagging buffer
@@ -531,16 +524,12 @@ document.addEventListener('DOMContentLoaded', () => {
             audioPlayer.load();
             
             audioPlayer.play().then(() => {
+                isPlaying = true;
                 playerSubtitle.textContent = 'En vivo';
                 startWatchdog();
             }).catch(err => {
-                if (err.name === 'AbortError') {
-                    console.log('Play request aborted by user pause.');
-                    return;
-                }
                 console.error('Error playing audio:', err);
                 isPlaying = false;
-                updatePlayIcon();
                 playerSubtitle.textContent = 'Señal no disponible';
                 showToast(
                     'Emisora no disponible',
@@ -551,6 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 startEndlessRecovery(); // Start seeking signal in the background
             });
         }
+        updatePlayIcon();
     }
 
     function updatePlayIcon() {
