@@ -714,51 +714,51 @@ a[data-view]:focus,
     outline: none;
 }
 
-/* Custom focus indicators */
-.card:focus {
+/* Custom focus indicators triggered only by Remote/Keyboard navigation */
+.card:focus-visible {
     background: var(--bg-card-hover) !important;
     border-color: var(--secondary-color) !important;
     transform: translateY(-5px);
     box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.4), 0 10px 30px rgba(0, 0, 0, 0.4) !important;
 }
 
-.btn-fav:focus {
+.btn-fav:focus-visible {
     color: var(--primary-color) !important;
     background: rgba(255, 59, 48, 0.15) !important;
     box-shadow: 0 0 0 3px var(--primary-color) !important;
     transform: scale(1.1);
 }
 
-.nav-links a:focus {
+.nav-links a:focus-visible {
     color: var(--text-main) !important;
     background: rgba(255, 255, 255, 0.1) !important;
     box-shadow: inset 4px 0 0 var(--secondary-color) !important;
 }
 
-.nav-links a.active:focus {
+.nav-links a.active:focus-visible {
     box-shadow: inset 4px 0 0 var(--primary-color), 0 0 0 3px rgba(255, 59, 48, 0.2) !important;
 }
 
-.control-btn:focus {
+.control-btn:focus-visible {
     box-shadow: 0 0 0 4px #ffffff, 0 6px 20px rgba(255, 59, 48, 0.6) !important;
     transform: scale(1.08);
 }
 
-#volume-slider:focus {
+#volume-slider:focus-visible {
     box-shadow: 0 0 0 3px var(--primary-color) !important;
 }
 
-.close-modal:focus {
+.close-modal:focus-visible {
     color: var(--primary-color) !important;
     transform: scale(1.2);
 }
 
-#btn-show-cartelera:focus {
+#btn-show-cartelera:focus-visible {
     background: #0062cc !important;
     box-shadow: 0 0 0 3px #ffffff !important;
 }
 
-#menu-toggle:focus {
+#menu-toggle:focus-visible {
     color: var(--primary-color) !important;
     transform: scale(1.1);
 }
