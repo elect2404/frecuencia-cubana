@@ -192,7 +192,7 @@ body {
 /* Grid */
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 24px;
     padding-top: 20px;
 }
@@ -226,7 +226,7 @@ body {
     border-radius: 12px;
     overflow: hidden;
     margin-bottom: 16px;
-    background-color: #1a1d24;
+    background-color: #ffffff;
 }
 
 .card-img {
@@ -238,6 +238,13 @@ body {
     object-fit: contain;
     display: block;
     border-radius: 8px;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    transition: transform 0.3s ease;
+}
+
+.card:hover .card-img {
+    transform: scale(1.05);
 }
 
 .card-title {
@@ -581,3 +588,179 @@ body {
         justify-content: flex-end;
     }
 }
+
+/* Toast Notifications */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    z-index: 9999;
+    pointer-events: none;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s ease;
+    opacity: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    width: 90%;
+    max-width: 400px;
+}
+
+.toast-container.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.toast {
+    background: rgba(20, 23, 28, 0.95);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--secondary-color);
+    padding: 14px 18px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    pointer-events: auto;
+    transition: all 0.3s ease;
+}
+
+.toast.success {
+    border-left-color: #30d158; /* Apple green */
+}
+
+.toast.warning {
+    border-left-color: #ff9f0a; /* Apple orange */
+}
+
+.toast.danger {
+    border-left-color: #ff453a; /* Apple red */
+}
+
+.toast-icon {
+    font-size: 1.3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toast.success .toast-icon {
+    color: #30d158;
+}
+
+.toast.warning .toast-icon {
+    color: #ff9f0a;
+}
+
+.toast.danger .toast-icon {
+    color: #ff453a;
+}
+
+.toast.info .toast-icon {
+    color: #0a84ff; /* Apple blue */
+}
+
+.toast-content {
+    flex: 1;
+}
+
+.toast-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text-main);
+    margin-bottom: 2px;
+}
+
+.toast-message {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.toast-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 4px;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toast-close:hover {
+    color: var(--text-main);
+}
+
+/* ==========================================
+   GOOGLE TV / ANDROID TV FOCUS INDICATORS 
+   ========================================== */
+
+/* Remove default browser focus outlines to use unified, gorgeous styles */
+a[data-view]:focus,
+.card:focus,
+.btn-fav:focus,
+.control-btn:focus,
+#volume-slider:focus,
+.close-modal:focus,
+#btn-show-cartelera:focus,
+#menu-toggle:focus {
+    outline: none;
+}
+
+/* Custom focus indicators triggered only by Remote/Keyboard navigation */
+.card:focus-visible {
+    background: var(--bg-card-hover) !important;
+    border-color: var(--secondary-color) !important;
+    transform: translateY(-5px);
+    box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.4), 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+}
+
+.btn-fav:focus-visible {
+    color: var(--primary-color) !important;
+    background: rgba(255, 59, 48, 0.15) !important;
+    box-shadow: 0 0 0 3px var(--primary-color) !important;
+    transform: scale(1.1);
+}
+
+.nav-links a:focus-visible {
+    color: var(--text-main) !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    box-shadow: inset 4px 0 0 var(--secondary-color) !important;
+}
+
+.nav-links a.active:focus-visible {
+    box-shadow: inset 4px 0 0 var(--primary-color), 0 0 0 3px rgba(255, 59, 48, 0.2) !important;
+}
+
+.control-btn:focus-visible {
+    box-shadow: 0 0 0 4px #ffffff, 0 6px 20px rgba(255, 59, 48, 0.6) !important;
+    transform: scale(1.08);
+}
+
+#volume-slider:focus-visible {
+    box-shadow: 0 0 0 3px var(--primary-color) !important;
+}
+
+.close-modal:focus-visible {
+    color: var(--primary-color) !important;
+    transform: scale(1.2);
+}
+
+#btn-show-cartelera:focus-visible {
+    background: #0062cc !important;
+    box-shadow: 0 0 0 3px #ffffff !important;
+}
+
+#menu-toggle:focus-visible {
+    color: var(--primary-color) !important;
+    transform: scale(1.1);
+}
+
+

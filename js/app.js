@@ -44,6 +44,19 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentAudioUrl = '';
     let isPlaying = false;
 
+    // --- Network & Recovery State ---
+    let shouldBePlaying = false; // Capture explicit user play/pause intent
+    let isOffline = !navigator.onLine;
+    let reconnectTimeout = null;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 5;
+    let endlessRecoveryTimer = null;
+
+    let lastCurrentTime = -1;
+    let stagnantTimeCount = 0;
+    let watchdogInterval = null;
+
+
     // --- Navigation (SPA) ---
     function switchView(viewId, title) {
         views.forEach(view => view.classList.remove('active-view'));
@@ -60,6 +73,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (viewId === 'favorites') {
             renderFavorites();
+        }
+
+        // Scroll the main content area to the top on section change
+        const mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+            mainContent.scrollTop = 0;
         }
     }
 
@@ -81,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const isFav = favorites.includes(item.id);
         const card = document.createElement('div');
         card.className = 'card';
+        card.setAttribute('tabindex', '0');
         card.innerHTML = `
             <button class="btn-fav ${isFav ? 'active' : ''}" data-id="${item.id}">
                 <i class="fa-${isFav ? 'solid' : 'regular'} fa-heart"></i>
@@ -98,6 +118,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 playRadio(item);
             } else if (item.type === 'tv') {
                 playTv(item);
+            }
+        });
+
+        // TV Remote / Keyboard Enter Activation
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                card.click();
             }
         });
 
@@ -179,37 +207,338 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Toast Notification Helper ---
+    function showToast(title, message, type = 'info', duration = 4000) {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        let iconClass = 'fa-solid fa-circle-info';
+        if (type === 'success') iconClass = 'fa-solid fa-circle-check';
+        if (type === 'warning') iconClass = 'fa-solid fa-triangle-exclamation';
+        if (type === 'danger') iconClass = 'fa-solid fa-circle-exclamation';
+
+        toast.innerHTML = `
+            <div class="toast-icon">
+                <i class="${iconClass}"></i>
+            </div>
+            <div class="toast-content">
+                <div class="toast-title">${title}</div>
+                <div class="toast-message">${message}</div>
+            </div>
+            <button class="toast-close"><i class="fa-solid fa-xmark"></i></button>
+        `;
+        
+        container.appendChild(toast);
+        
+        // Force reflow
+        toast.offsetHeight;
+        
+        // Show
+        container.classList.add('show');
+        
+        const closeBtn = toast.querySelector('.toast-close');
+        const dismissToast = () => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(-20px)';
+            setTimeout(() => {
+                toast.remove();
+                if (container.children.length === 0) {
+                    container.classList.remove('show');
+                }
+            }, 400);
+        };
+        
+        closeBtn.addEventListener('click', dismissToast);
+        
+        if (duration > 0) {
+            setTimeout(dismissToast, duration);
+        }
+    }
+
+    // --- Audio Watchdog ---
+    function startWatchdog() {
+        stopWatchdog();
+        lastCurrentTime = audioPlayer.currentTime;
+        stagnantTimeCount = 0;
+        
+        watchdogInterval = setInterval(() => {
+            if (!isPlaying || isOffline) {
+                stagnantTimeCount = 0;
+                return;
+            }
+            
+            if (audioPlayer.currentTime === lastCurrentTime) {
+                stagnantTimeCount++;
+                if (stagnantTimeCount >= 3) { // 3 ticks * 3s = 9s stagnant
+                    console.log('Watchdog: Audio stream stagnant. Reconnecting...');
+                    reconnectStream();
+                } else {
+                    playerSubtitle.textContent = 'Cargando señal...';
+                }
+            } else {
+                stagnantTimeCount = 0;
+                playerSubtitle.textContent = 'En vivo';
+                lastCurrentTime = audioPlayer.currentTime;
+            }
+        }, 3000);
+    }
+
+    function stopWatchdog() {
+        if (watchdogInterval) {
+            clearInterval(watchdogInterval);
+            watchdogInterval = null;
+        }
+    }
+
+    // --- Endless Recovery Loop (WebView Friendly) ---
+    function startEndlessRecovery() {
+        stopEndlessRecovery();
+        
+        console.log('Starting endless recovery loop...');
+        playerSubtitle.textContent = 'Sin señal - Buscando...';
+        
+        endlessRecoveryTimer = setInterval(() => {
+            if (!shouldBePlaying) {
+                stopEndlessRecovery();
+                return;
+            }
+            
+            if (!isPlaying) {
+                console.log('Endless Recovery Check: Trying to connect...');
+                playerSubtitle.textContent = 'Buscando señal...';
+                
+                audioPlayer.pause();
+                audioPlayer.src = '';
+                audioPlayer.load();
+                
+                setTimeout(() => {
+                    if (!shouldBePlaying) return;
+                    
+                    audioPlayer.src = currentAudioUrl;
+                    audioPlayer.load();
+                    
+                    audioPlayer.play().then(() => {
+                        console.log('Endless Recovery Check: Succeeded!');
+                        isPlaying = true;
+                        updatePlayIcon();
+                        playerSubtitle.textContent = 'En vivo';
+                        showToast(
+                            'Señal restablecida', 
+                            'La transmisión se ha reanudado automáticamente.', 
+                            'success'
+                        );
+                        startWatchdog();
+                        stopEndlessRecovery();
+                    }).catch(err => {
+                        console.log('Endless Recovery Check: Failed attempt. Will retry...');
+                        playerSubtitle.textContent = 'Esperando señal...';
+                    });
+                }, 1000);
+            } else {
+                stopEndlessRecovery();
+            }
+        }, 8000); // Check every 8 seconds
+    }
+
+    function stopEndlessRecovery() {
+        if (endlessRecoveryTimer) {
+            clearInterval(endlessRecoveryTimer);
+            endlessRecoveryTimer = null;
+        }
+    }
+
+    // --- Reconnect Logic ---
+    function reconnectStream() {
+        if (!currentAudioUrl) return;
+        
+        if (reconnectTimeout) clearTimeout(reconnectTimeout);
+        
+        console.log('Attempting to reconnect...');
+        playerSubtitle.textContent = 'Conectando emisora...';
+        
+        // Stop current audio player completely to free sockets
+        audioPlayer.pause();
+        audioPlayer.src = '';
+        audioPlayer.load();
+        
+        // If we are offline, go straight to the endless recovery loop
+        if (isOffline || !navigator.onLine) {
+            startEndlessRecovery();
+            return;
+        }
+        
+        // Small timeout before resetting src and playing to let sockets close cleanly
+        reconnectTimeout = setTimeout(() => {
+            if (isOffline || !navigator.onLine) {
+                startEndlessRecovery();
+                return;
+            }
+
+            audioPlayer.src = currentAudioUrl;
+            audioPlayer.load();
+            
+            audioPlayer.play().then(() => {
+                isPlaying = true;
+                updatePlayIcon();
+                playerSubtitle.textContent = 'En vivo';
+                startWatchdog();
+                reconnectAttempts = 0;
+                stopEndlessRecovery();
+            }).catch(err => {
+                console.error('Reconnect failed:', err);
+                reconnectAttempts++;
+                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    playerSubtitle.textContent = `Reintentando reconexión (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`;
+                    reconnectTimeout = setTimeout(reconnectStream, 3000);
+                } else {
+                    isPlaying = false;
+                    updatePlayIcon();
+                    playerSubtitle.textContent = 'Señal caída - Buscando...';
+                    stopWatchdog();
+                    startEndlessRecovery(); // Transition to slow recovery loop
+                }
+            });
+        }, 1000);
+    }
+
+    // --- Network Listeners ---
+    window.addEventListener('offline', () => {
+        isOffline = true;
+        
+        // Cancel any pending background reconnect timeouts
+        if (reconnectTimeout) {
+            clearTimeout(reconnectTimeout);
+            reconnectTimeout = null;
+        }
+        
+        showToast(
+            'Sin conexión a Internet', 
+            'Se ha perdido la conexión de red. La reproducción se reanudará automáticamente al recuperar la señal.', 
+            'danger', 
+            0
+        );
+        
+        if (isPlaying) {
+            audioPlayer.pause();
+            playerSubtitle.textContent = 'Esperando conexión de red...';
+            stopWatchdog();
+        }
+        
+        if (shouldBePlaying) {
+            startEndlessRecovery();
+        }
+    });
+
+    window.addEventListener('online', () => {
+        isOffline = false;
+        
+        // Dismiss offline danger toasts
+        const offlineToasts = document.querySelectorAll('.toast.danger');
+        offlineToasts.forEach(t => {
+            const closeBtn = t.querySelector('.toast-close');
+            if (closeBtn) closeBtn.click();
+        });
+        
+        showToast(
+            'Conexión restaurada', 
+            'La señal de Internet ha vuelto. Restableciendo la transmisión...', 
+            'success', 
+            4000
+        );
+        
+        if (shouldBePlaying && currentAudioUrl) {
+            stopEndlessRecovery();
+            reconnectAttempts = 0;
+            reconnectStream();
+        }
+    });
+
     // --- Audio Player Logic ---
     function playRadio(radio) {
         // Stop TV if playing
         stopTv();
+        
+        shouldBePlaying = true; // Set explicit play intent
+        stopEndlessRecovery();
+        
+        if (reconnectTimeout) clearTimeout(reconnectTimeout);
+        reconnectAttempts = 0;
 
         if (currentAudioUrl !== radio.url) {
             currentAudioUrl = radio.url;
             audioPlayer.src = radio.url;
             playerTitle.textContent = radio.name;
-            playerSubtitle.textContent = 'En vivo';
+            playerSubtitle.textContent = 'Conectando...';
             playerCover.src = radio.image;
         }
+        
+        playerSubtitle.textContent = 'Conectando...';
         
         audioPlayer.play().then(() => {
             isPlaying = true;
             updatePlayIcon();
+            playerSubtitle.textContent = 'En vivo';
+            startWatchdog();
         }).catch(err => {
             console.error('Error playing audio:', err);
-            alert('No se pudo reproducir esta emisora. Puede estar fuera de servicio temporalmente.');
+            isPlaying = false;
+            updatePlayIcon();
+            playerSubtitle.textContent = 'Señal no disponible';
+            showToast(
+                'Emisora no disponible',
+                'No se pudo conectar a la transmisión. La emisora puede estar inactiva temporariamente.',
+                'warning'
+            );
+            stopWatchdog();
+            startEndlessRecovery(); // Start seeking signal in the background
         });
     }
 
     function togglePlay() {
         if (!currentAudioUrl) return;
 
+        if (reconnectTimeout) clearTimeout(reconnectTimeout);
+        reconnectAttempts = 0;
+
         if (isPlaying) {
+            shouldBePlaying = false; // Set explicit pause intent
+            stopEndlessRecovery();
             audioPlayer.pause();
             isPlaying = false;
+            playerSubtitle.textContent = 'Pausado';
+            stopWatchdog();
         } else {
-            audioPlayer.play();
-            isPlaying = true;
+            shouldBePlaying = true; // Set explicit play intent
+            stopEndlessRecovery();
+            playerSubtitle.textContent = 'Conectando...';
+            // Force reload to get fresh live stream frames instead of lagging buffer
+            audioPlayer.src = currentAudioUrl;
+            audioPlayer.load();
+            
+            audioPlayer.play().then(() => {
+                isPlaying = true;
+                playerSubtitle.textContent = 'En vivo';
+                startWatchdog();
+            }).catch(err => {
+                console.error('Error playing audio:', err);
+                isPlaying = false;
+                playerSubtitle.textContent = 'Señal no disponible';
+                showToast(
+                    'Emisora no disponible',
+                    'No se pudo conectar a la transmisión. La emisora puede estar inactiva temporariamente.',
+                    'warning'
+                );
+                stopWatchdog();
+                startEndlessRecovery(); // Start seeking signal in the background
+            });
         }
         updatePlayIcon();
     }
@@ -224,10 +553,25 @@ document.addEventListener('DOMContentLoaded', () => {
         audioPlayer.volume = e.target.value;
     });
 
-    audioPlayer.addEventListener('error', () => {
-        isPlaying = false;
-        updatePlayIcon();
-        playerSubtitle.textContent = 'Error de conexión';
+    audioPlayer.addEventListener('error', (e) => {
+        console.error('Audio player error occurred:', e);
+        stopWatchdog();
+        
+        if (shouldBePlaying && currentAudioUrl) {
+            isPlaying = false;
+            updatePlayIcon();
+            playerSubtitle.textContent = 'Buscando señal...';
+            startEndlessRecovery(); // Instantly enter background recovery loop
+        } else {
+            isPlaying = false;
+            updatePlayIcon();
+            playerSubtitle.textContent = 'Error de conexión';
+            showToast(
+                'Error de transmisión', 
+                'Ocurrió un error al cargar la señal de la emisora. Puede estar temporalmente fuera de servicio.', 
+                'danger'
+            );
+        }
     });
 
     // --- Video (TV) Player Logic ---
@@ -238,6 +582,8 @@ document.addEventListener('DOMContentLoaded', () => {
             isPlaying = false;
             updatePlayIcon();
         }
+        shouldBePlaying = false; // Focus is now TV, turn off radio auto-reconnect intent
+        stopEndlessRecovery();
 
         tvModalTitle.textContent = tv.name;
         
@@ -269,6 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         tvModal.classList.add('show');
+        enterFullscreen(tvPlayer);
         
         if (Hls.isSupported() && tv.url.includes('.m3u8')) {
             if (hls) hls.destroy();
@@ -291,6 +638,41 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function enterFullscreen(element) {
+        if (element.requestFullscreen) {
+            element.requestFullscreen();
+        } else if (element.webkitRequestFullscreen) {
+            element.webkitRequestFullscreen();
+        } else if (element.webkitEnterFullscreen) {
+            element.webkitEnterFullscreen(); // iOS Safari
+        } else if (element.mozRequestFullScreen) {
+            element.mozRequestFullScreen();
+        } else if (element.msRequestFullscreen) {
+            element.msRequestFullscreen();
+        }
+    }
+
+    if (tvPlayer) {
+        tvPlayer.addEventListener('webkitbeginfullscreen', () => {
+            // Ensure modal state reflects fullscreen status on iOS
+            if (!tvModal.classList.contains('show')) {
+                tvModal.classList.add('show');
+            }
+        });
+    }
+
+    function exitFullscreen() {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+    }
+
     function stopTv() {
         if (hls) {
             hls.destroy();
@@ -298,6 +680,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         tvPlayer.pause();
         tvPlayer.src = '';
+        exitFullscreen();
+    }
+
+    // Automatically enter fullscreen on rotating to landscape while TV modal is active
+    function handleOrientationChange() {
+        if (tvModal.classList.contains('show')) {
+            const isLandscape = window.screen.orientation ? 
+                                window.screen.orientation.type.startsWith('landscape') : 
+                                (window.innerHeight < window.innerWidth);
+            
+            if (isLandscape) {
+                enterFullscreen(tvPlayer);
+            }
+        }
+    }
+
+    if (window.screen && window.screen.orientation) {
+        window.screen.orientation.addEventListener('change', handleOrientationChange);
+    } else {
+        window.addEventListener('orientationchange', handleOrientationChange);
     }
 
     closeTvModal.addEventListener('click', () => {
@@ -310,6 +712,100 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target === tvModal) {
             tvModal.classList.remove('show');
             stopTv();
+        }
+    });
+
+    // --- Google TV / Android TV Remote Support (D-pad & Back Button) ---
+    document.addEventListener('keydown', (e) => {
+        // 1. Back/Escape Key to close TV modal
+        if (e.key === 'Escape' || e.key === 'Backspace') {
+            const tvModalEl = document.getElementById('tv-modal');
+            if (tvModalEl && tvModalEl.classList.contains('show')) {
+                e.preventDefault();
+                const closeBtn = document.getElementById('close-tv-modal');
+                if (closeBtn) closeBtn.click();
+            }
+            return;
+        }
+
+        // 2. D-pad Directional Navigation
+        const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+        if (!arrowKeys.includes(e.key)) return;
+
+        // Skip spatial navigation if focused on an input field
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+
+        const active = document.activeElement;
+        
+        // Target list of focusable elements currently visible in the active PWA view
+        const focusableSelectors = 'a[data-view], .card, .btn-fav, .control-btn, #volume-slider, .close-modal, #btn-show-cartelera, #menu-toggle';
+        
+        const focusables = Array.from(document.querySelectorAll(focusableSelectors)).filter(el => {
+            // Only select elements that are visible and have dimensions
+            return el.offsetWidth > 0 && el.offsetHeight > 0 && window.getComputedStyle(el).display !== 'none';
+        });
+
+        if (focusables.length === 0) return;
+
+        // Focus first target if nothing is focused yet
+        if (!active || !focusables.includes(active)) {
+            const defaultTarget = document.querySelector('a[data-view].active') || focusables[0];
+            defaultTarget.focus();
+            e.preventDefault();
+            return;
+        }
+
+        const activeRect = active.getBoundingClientRect();
+        const activeCenter = {
+            x: activeRect.left + activeRect.width / 2,
+            y: activeRect.top + activeRect.height / 2
+        };
+
+        let bestCandidate = null;
+        let minDistance = Infinity;
+
+        focusables.forEach(candidate => {
+            if (candidate === active) return;
+
+            const rect = candidate.getBoundingClientRect();
+            const center = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+
+            const dx = center.x - activeCenter.x;
+            const dy = center.y - activeCenter.y;
+
+            let isDirectionMatch = false;
+
+            // Simple directional threshold filtering (1.5 threshold helps prevent diagonal jumping)
+            switch (e.key) {
+                case 'ArrowLeft':
+                    isDirectionMatch = dx < -5 && Math.abs(dy) < Math.abs(dx) * 1.5;
+                    break;
+                case 'ArrowRight':
+                    isDirectionMatch = dx > 5 && Math.abs(dy) < Math.abs(dx) * 1.5;
+                    break;
+                case 'ArrowUp':
+                    isDirectionMatch = dy < -5 && Math.abs(dx) < Math.abs(dy) * 1.5;
+                    break;
+                case 'ArrowDown':
+                    isDirectionMatch = dy > 5 && Math.abs(dx) < Math.abs(dy) * 1.5;
+                    break;
+            }
+
+            if (isDirectionMatch) {
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    bestCandidate = candidate;
+                }
+            }
+        });
+
+        if (bestCandidate) {
+            bestCandidate.focus();
+            e.preventDefault();
         }
     });
 
