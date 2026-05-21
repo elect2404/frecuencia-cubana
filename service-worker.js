@@ -1,4 +1,4 @@
-const CACHE_NAME = 'frecuencia-cubana-v6';
+const CACHE_NAME = 'frecuencia-cubana-v7';
 const ASSETS = [
   './',
   './index.html',

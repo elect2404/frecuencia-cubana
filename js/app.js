@@ -549,11 +549,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnPlayPause.addEventListener('click', togglePlay);
 
-    if (volumeSlider) {
-        volumeSlider.addEventListener('input', (e) => {
-            audioPlayer.volume = e.target.value;
-        });
-    }
+    volumeSlider.addEventListener('input', (e) => {
+        audioPlayer.volume = e.target.value;
+    });
 
     audioPlayer.addEventListener('error', (e) => {
         console.error('Audio player error occurred:', e);
