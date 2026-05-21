@@ -617,6 +617,11 @@ document.addEventListener('DOMContentLoaded', () => {
         tvModal.classList.add('show');
         enterFullscreen(tvPlayer);
         
+        // Push state so back button closes modal instead of exiting app
+        if (!history.state || history.state.modal !== 'tv') {
+            history.pushState({ modal: 'tv' }, null);
+        }
+        
         if (Hls.isSupported() && tv.url.includes('.m3u8')) {
             if (hls) hls.destroy();
             hls = new Hls();
@@ -702,14 +707,26 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('orientationchange', handleOrientationChange);
     }
 
-    closeTvModal.addEventListener('click', () => {
+    function closeTvModalWithHistory() {
         tvModal.classList.remove('show');
         stopTv();
-    });
+        if (history.state && history.state.modal === 'tv') {
+            history.back();
+        }
+    }
+
+    closeTvModal.addEventListener('click', closeTvModalWithHistory);
 
     // Close modal on outside click
     tvModal.addEventListener('click', (e) => {
         if (e.target === tvModal) {
+            closeTvModalWithHistory();
+        }
+    });
+
+    // Handle back button / history popstate
+    window.addEventListener('popstate', (e) => {
+        if (tvModal && tvModal.classList.contains('show')) {
             tvModal.classList.remove('show');
             stopTv();
         }
