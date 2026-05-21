@@ -728,6 +728,89 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // 2. D-pad Directional Navigation
+        const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+        if (!arrowKeys.includes(e.key)) return;
+        
+        // Prevent default scrolling and address bar popping up
+        e.preventDefault();
+
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+
+        const active = document.activeElement;
+        
+        // Target list (removed .btn-fav to prevent double clicking on cards)
+        const focusableSelectors = 'a[data-view], .card, .control-btn, #volume-slider, .close-modal, #btn-show-cartelera, #menu-toggle';
+        
+        const focusables = Array.from(document.querySelectorAll(focusableSelectors)).filter(el => {
+            return el.offsetWidth > 0 && el.offsetHeight > 0 && window.getComputedStyle(el).display !== 'none';
+        });
+
+        if (focusables.length === 0) return;
+
+        if (!active || !focusables.includes(active)) {
+            const defaultTarget = document.querySelector('a[data-view].active') || focusables[0];
+            defaultTarget.focus();
+            return;
+        }
+
+        const activeRect = active.getBoundingClientRect();
+        const activeCenter = {
+            x: activeRect.left + activeRect.width / 2,
+            y: activeRect.top + activeRect.height / 2
+        };
+
+        let bestCandidate = null;
+        let minDistance = Infinity;
+
+        focusables.forEach(candidate => {
+            if (candidate === active) return;
+
+            const rect = candidate.getBoundingClientRect();
+            const center = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+
+            const dx = center.x - activeCenter.x;
+            const dy = center.y - activeCenter.y;
+
+            let isDirectionMatch = false;
+            let weightDx = 1;
+            let weightDy = 1;
+
+            switch (e.key) {
+                case 'ArrowLeft':
+                    isDirectionMatch = dx < 0;
+                    weightDy = 4;
+                    break;
+                case 'ArrowRight':
+                    isDirectionMatch = dx > 0;
+                    weightDy = 4;
+                    break;
+                case 'ArrowUp':
+                    isDirectionMatch = dy < 0;
+                    weightDx = 4;
+                    break;
+                case 'ArrowDown':
+                    isDirectionMatch = dy > 0;
+                    weightDx = 4;
+                    break;
+            }
+
+            if (isDirectionMatch) {
+                const distance = Math.abs(dx) * weightDx + Math.abs(dy) * weightDy;
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    bestCandidate = candidate;
+                }
+            }
+        });
+
+        if (bestCandidate) {
+            bestCandidate.focus();
+        }
+
 
     });
 
