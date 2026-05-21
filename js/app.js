@@ -731,26 +731,27 @@ document.addEventListener('DOMContentLoaded', () => {
         // 2. D-pad Directional Navigation
         const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
         if (!arrowKeys.includes(e.key)) return;
-        
-        // Prevent default scrolling and address bar popping up
-        e.preventDefault();
 
+        // Skip spatial navigation if focused on an input field
         if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
 
         const active = document.activeElement;
         
-        // Target list (removed .btn-fav to prevent double clicking on cards)
+        // Target list of focusable elements currently visible in the active PWA view (removed .btn-fav to fix double click)
         const focusableSelectors = 'a[data-view], .card, .control-btn, #volume-slider, .close-modal, #btn-show-cartelera, #menu-toggle';
         
         const focusables = Array.from(document.querySelectorAll(focusableSelectors)).filter(el => {
+            // Only select elements that are visible and have dimensions
             return el.offsetWidth > 0 && el.offsetHeight > 0 && window.getComputedStyle(el).display !== 'none';
         });
 
         if (focusables.length === 0) return;
 
+        // Focus first target if nothing is focused yet
         if (!active || !focusables.includes(active)) {
             const defaultTarget = document.querySelector('a[data-view].active') || focusables[0];
             defaultTarget.focus();
+            e.preventDefault();
             return;
         }
 
@@ -776,30 +777,25 @@ document.addEventListener('DOMContentLoaded', () => {
             const dy = center.y - activeCenter.y;
 
             let isDirectionMatch = false;
-            let weightDx = 1;
-            let weightDy = 1;
 
+            // Simple directional threshold filtering (widened from 1.5 to 5.0 to prevent getting stuck on centered player)
             switch (e.key) {
                 case 'ArrowLeft':
-                    isDirectionMatch = dx < 0;
-                    weightDy = 4;
+                    isDirectionMatch = dx < -5 && Math.abs(dy) < Math.abs(dx) * 5.0;
                     break;
                 case 'ArrowRight':
-                    isDirectionMatch = dx > 0;
-                    weightDy = 4;
+                    isDirectionMatch = dx > 5 && Math.abs(dy) < Math.abs(dx) * 5.0;
                     break;
                 case 'ArrowUp':
-                    isDirectionMatch = dy < 0;
-                    weightDx = 4;
+                    isDirectionMatch = dy < -5 && Math.abs(dx) < Math.abs(dy) * 5.0;
                     break;
                 case 'ArrowDown':
-                    isDirectionMatch = dy > 0;
-                    weightDx = 4;
+                    isDirectionMatch = dy > 5 && Math.abs(dx) < Math.abs(dy) * 5.0;
                     break;
             }
 
             if (isDirectionMatch) {
-                const distance = Math.abs(dx) * weightDx + Math.abs(dy) * weightDy;
+                const distance = Math.sqrt(dx * dx + dy * dy);
                 if (distance < minDistance) {
                     minDistance = distance;
                     bestCandidate = candidate;
@@ -809,6 +805,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (bestCandidate) {
             bestCandidate.focus();
+            e.preventDefault();
         }
 
 
