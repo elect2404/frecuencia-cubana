@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const radioGrid = document.getElementById('radio-grid');
     const tvGrid = document.getElementById('tv-grid');
+    const tvIntGrid = document.getElementById('tv-int-grid');
     const favoritesGrid = document.getElementById('favorites-grid');
     const noFavorites = document.getElementById('no-favorites');
     
@@ -24,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeTvModal = document.getElementById('close-tv-modal');
     const tvPlayer = document.getElementById('tv-player');
     const tvModalTitle = document.getElementById('tv-modal-title');
+    const tvModalFav = document.getElementById('tv-modal-fav');
     const btnShowCartelera = document.getElementById('btn-show-cartelera');
     let hls = null;
 
@@ -151,6 +153,13 @@ document.addEventListener('DOMContentLoaded', () => {
         appData.tvs.forEach(tv => {
             tvGrid.appendChild(createCard(tv));
         });
+
+        if (tvIntGrid && appData.tvs_int) {
+            tvIntGrid.innerHTML = '';
+            appData.tvs_int.forEach(tv => {
+                tvIntGrid.appendChild(createCard(tv));
+            });
+        }
     }
 
     function renderFavorites() {
@@ -160,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             noFavorites.style.display = 'none';
             
-            const allItems = [...appData.radios, ...appData.tvs];
+            const allItems = [...appData.radios, ...appData.tvs, ...(appData.tvs_int || [])];
             const favItems = allItems.filter(item => favorites.includes(item.id));
             
             favItems.forEach(item => {
@@ -480,6 +489,34 @@ document.addEventListener('DOMContentLoaded', () => {
             playerCover.src = radio.image;
         }
         
+        const currentRadioFav = document.getElementById('radio-player-fav');
+        if (currentRadioFav) {
+            currentRadioFav.style.display = 'block';
+            const newFavBtn = currentRadioFav.cloneNode(true);
+            currentRadioFav.parentNode.replaceChild(newFavBtn, currentRadioFav);
+            
+            const icon = newFavBtn.querySelector('i');
+            if (favorites.includes(radio.id)) {
+                newFavBtn.classList.add('active');
+                newFavBtn.style.color = 'var(--primary-color)';
+                icon.className = 'fa-solid fa-heart';
+            } else {
+                newFavBtn.classList.remove('active');
+                newFavBtn.style.color = 'var(--text-muted)';
+                icon.className = 'fa-regular fa-heart';
+            }
+            
+            newFavBtn.addEventListener('click', () => {
+                toggleFavorite(radio.id, newFavBtn);
+                
+                if (favorites.includes(radio.id)) {
+                    newFavBtn.style.color = 'var(--primary-color)';
+                } else {
+                    newFavBtn.style.color = 'var(--text-muted)';
+                }
+            });
+        }
+        
         playerSubtitle.textContent = 'Conectando...';
         
         audioPlayer.play().then(() => {
@@ -586,6 +623,34 @@ document.addEventListener('DOMContentLoaded', () => {
         stopEndlessRecovery();
 
         tvModalTitle.textContent = tv.name;
+
+        // Setup Modal Favorite button
+        const currentTvModalFav = document.getElementById('tv-modal-fav');
+        if (currentTvModalFav) {
+            const newFavBtn = currentTvModalFav.cloneNode(true);
+            currentTvModalFav.parentNode.replaceChild(newFavBtn, currentTvModalFav);
+            
+            const icon = newFavBtn.querySelector('i');
+            if (favorites.includes(tv.id)) {
+                newFavBtn.classList.add('active');
+                newFavBtn.style.color = 'var(--primary-color)';
+                icon.className = 'fa-solid fa-heart';
+            } else {
+                newFavBtn.classList.remove('active');
+                newFavBtn.style.color = 'var(--text-muted)';
+                icon.className = 'fa-regular fa-heart';
+            }
+            
+            newFavBtn.addEventListener('click', () => {
+                toggleFavorite(tv.id, newFavBtn);
+                
+                if (favorites.includes(tv.id)) {
+                    newFavBtn.style.color = 'var(--primary-color)';
+                } else {
+                    newFavBtn.style.color = 'var(--text-muted)';
+                }
+            });
+        }
         
         // Cartelera Logic
         

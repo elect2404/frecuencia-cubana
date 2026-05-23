@@ -37,6 +37,7 @@
         <ul class="nav-links">
             <li><a href="#" data-view="radio" class="active"><i class="fa-solid fa-radio"></i> Radio</a></li>
             <li><a href="#" data-view="tv"><i class="fa-solid fa-tv"></i> Televisión</a></li>
+            <li><a href="#" data-view="tv-int"><i class="fa-solid fa-globe"></i> TV Internacional</a></li>
             <li><a href="#" data-view="favorites"><i class="fa-solid fa-heart"></i> Favoritos</a></li>
             <li><a href="#" data-view="news"><i class="fa-solid fa-newspaper"></i> Noticias</a></li>
             <li style="margin-top: 30px; margin-bottom: 10px; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); padding-left: 16px;">Legal y Contacto</li>
@@ -69,6 +70,10 @@
             
             <div id="view-tv" class="view">
                 <div class="grid" id="tv-grid"></div>
+            </div>
+            
+            <div id="view-tv-int" class="view">
+                <div class="grid" id="tv-int-grid"></div>
             </div>
             
             <div id="view-favorites" class="view">
@@ -162,7 +167,10 @@
                 <video id="tv-player" controls="controls" preload="auto"></video>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 id="tv-modal-title" style="margin: 0; font-size: 1.3rem;">Canal TV</h3>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <h3 id="tv-modal-title" style="margin: 0; font-size: 1.3rem;">Canal TV</h3>
+                    <button id="tv-modal-fav" class="btn-fav-modal" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: color 0.3s;"><i class="fa-regular fa-heart"></i></button>
+                </div>
                 <button id="btn-show-cartelera" style="display: none; background: var(--secondary-color); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: 'Outfit', sans-serif; font-weight: 600;"><i class="fa-solid fa-calendar-days"></i> Ver Cartelera</button>
             </div>
         </div>
@@ -176,6 +184,7 @@
                 <h4 id="player-title">Selecciona una emisora</h4>
                 <p id="player-subtitle">Frecuencia Cubana</p>
             </div>
+            <button id="radio-player-fav" class="btn-fav-modal" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: color 0.3s; margin-left: 10px; display: none;"><i class="fa-regular fa-heart"></i></button>
         </div>
         
         <div class="player-controls">

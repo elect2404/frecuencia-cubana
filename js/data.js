@@ -338,5 +338,20 @@ const appData = {
       "image": "img/tv_marti.webp",
       "type": "tv"
     }
+  ],
+  "tvs_int": [
+    {"id": "tv-int-1", "name": "AMC en espanol", "url": "https://pb-fmbyorn1d0n1n.akamaized.net/v1/amc_amcespanol_3/samsungheadend_us/latest/main/hls/playlist.m3u8", "image": "img/tv_int_1.webp", "type": "tv"},
+    {"id": "tv-int-2", "name": "Cine Friki", "url": "https://d2mr4fu91mjx9m.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-rb0tx75ojbc5u/CineFriki_ES.m3u8", "image": "img/tv_int_2.webp", "type": "tv"},
+    {"id": "tv-int-3", "name": "Historia", "url": "https://d1k3vzh2ivy22k.cloudfront.net/Historia.m3u8", "image": "img/tv_int_3.webp", "type": "tv"},
+    {"id": "tv-int-4", "name": "Nickelodeon", "url": "https://xykt-fix.github.io/iptv/streams/SP57.m3u8", "image": "img/tv_int_4.webp", "type": "tv"},
+    {"id": "tv-int-5", "name": "TVE Star", "url": "https://rtvelivestream-rtveplayplus.rtve.es/rtvesec/int/star_main_1080.m3u8", "image": "img/tv_int_5.webp", "type": "tv"},
+    {"id": "tv-int-6", "name": "MCI", "url": "https://video.ejeserver.com/live/mcitelevision.m3u8", "image": "img/tv_int_6.webp", "type": "tv"},
+    {"id": "tv-int-7", "name": "3ABN Latino", "url": "https://3abn.bozztv.com/3abn2/Lat_live/smil:Lat_live.smil/playlist.m3u8", "image": "img/tv_int_7.webp", "type": "tv"},
+    {"id": "tv-int-9", "name": "Mega Cine TV", "url": "https://cnn.hostlagarto.com/megacinetv/playlist.m3u8", "image": "img/tv_int_9.webp", "type": "tv"},
+    {"id": "tv-int-10", "name": "Garage TV", "url": "https://stream1.sersat.com/hls/garagetv.m3u8", "image": "img/tv_int_10.webp", "type": "tv"},
+    {"id": "tv-int-11", "name": "America TeVe", "url": "https://live.gideo.video/americateve2/master.m3u8", "image": "img/tv_int_11.webp", "type": "tv"},
+    {"id": "tv-int-12", "name": "El Chavo TV", "url": "https://live20.bozztv.com/giatvplayout7/giatv-211465/playlist.m3u8", "image": "img/tv_int_12.webp", "type": "tv"},
+    {"id": "tv-int-13", "name": "Tiguerito TV", "url": "https://ss2.tvrdomi.com:1936/tigueritostv/tigueritostv/playlist.m3u8", "image": "img/tv_int_13.webp", "type": "tv"},
+    {"id": "tv-int-14", "name": "Xtrema Cartoons", "url": "https://stmv6.voxtvhd.com.br/xtremacartoons/xtremacartoons/playlist.m3u8", "image": "img/tv_int_14.webp", "type": "tv"}
   ]
 };
